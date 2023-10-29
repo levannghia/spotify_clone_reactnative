@@ -11,6 +11,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "scheme": "mycoolredirect",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -25,6 +26,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0164d7ae-ddd5-42b4-ab69-fb569b9eae2e"
+      }
     }
   }
 }
