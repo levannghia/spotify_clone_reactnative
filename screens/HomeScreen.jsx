@@ -6,8 +6,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import axios from 'axios'
 import { MaterialCommunityIcons, AntDesign } from '@expo/vector-icons'
 import ArtistCard from '../components/ArtistCard'
+import RecentlyPlayedCard from '../components/RecentlyPlayedCard'
+import { useNavigation } from '@react-navigation/native'
 
 const HomeScreen = () => {
+  const navigation = useNavigation();
   const [userProfile, setUserProfile] = useState({})
   const [recentlyPlayed, setRecentlyPlayed] = useState([])
   const [topArtists, setTopArtists] = useState([])
@@ -52,7 +55,7 @@ const HomeScreen = () => {
         }
       })
 
-      const tracks = response.data.items;
+      const tracks = response.data?.items;
       setRecentlyPlayed(tracks);
     } catch (error) {
       console.error(error.message);
@@ -67,21 +70,21 @@ const HomeScreen = () => {
     const getTopItem = async () => {
       const accessToken = await AsyncStorage.getItem('token');
       try {
-        if(!accessToken){
+        if (!accessToken) {
           console.log("Access token not found");
           return;
         }
-        // https://api.spotify.com/v1/me/top/${type}
+
         const type = "artists";
-        const response = await axios.get(`https://api.spotify.com/v1/playlists/3cEYpjA9oz9GiPac4AsH4n`, {
+        const response = await axios.get(`https://api.spotify.com/v1/me/top/${type}`, {
           headers: {
             Authorization: 'Bearer ' + accessToken
           }
         })
 
-        const artists = response.data.tracks.items;
-        // console.log();
-        setTopArtists(artists);
+        const artists = response.data.items;
+        console.log(artists);
+        // setTopArtists(artists);
       } catch (error) {
         console.error(error.message);
       }
@@ -91,28 +94,30 @@ const HomeScreen = () => {
   }, [])
 
   // console.log(userProfile);
-  console.log("artists", topArtists);
+  // console.log("artists", recentlyPlayed);
 
-  const renderItem = ({ item }) => {
-    <Pressable style={{
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      flex: 1,
-      marginVertical: 8,
-      borderRadius: 4,
-      elevation: 3,
-      backgroundColor: "#202020"
-    }}>
+  const renderItem = ({ item }) => (
+    <Pressable
+      key={item.track.uri}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        flex: 1,
+        marginVertical: 8,
+        borderRadius: 4,
+        elevation: 3,
+        backgroundColor: "#202020"
+      }}>
       <Image style={{
         width: 55,
         height: 55,
-      }} source={{ uri: item.track.album.image && item.track.album.image[0].url }} />
+      }} source={{ uri: item.track.album.images && item.track.album.images[0].url }} />
       <View style={{ flex: 1, marginHorizontal: 8, justifyContent: 'center' }}>
         <Text numberOfLines={2} style={{ fontSize: 13, fontWeight: "bold", color: "white" }}>{item.track.name}</Text>
       </View>
     </Pressable>
-  }
+  )
 
   return (
     <LinearGradient colors={["#040306", "#131624"]} style={{ flex: 1 }}>
@@ -144,16 +149,18 @@ const HomeScreen = () => {
           </View>
           <View style={{ height: 10 }} />
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 20 }}>
-            <Pressable style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              flex: 1,
-              marginVertical: 8,
-              borderRadius: 4,
-              elevation: 3,
-              backgroundColor: "#202020"
-            }}>
+            <Pressable
+              onPress={() => navigation.navigate('Liked')}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+                flex: 1,
+                marginVertical: 8,
+                borderRadius: 4,
+                elevation: 3,
+                backgroundColor: "#202020"
+              }}>
               <LinearGradient colors={["#33006F", "#FFFFFF"]}>
                 <Pressable style={{ width: 55, height: 55, justifyContent: "center", alignItems: "center" }}>
                   <AntDesign name='heart' size={24} color={"#ffffff"} />
@@ -179,22 +186,53 @@ const HomeScreen = () => {
             </View>
           </View>
           {/* <FlatList
+            // horizontal
             data={recentlyPlayed}
             numColumns={2}
             columnWrapperStyle={{ justifyContent: "space-between" }}
+            keyExtractor={item => item.track.uri}
             renderItem={renderItem}
           /> */}
-          <Text style={{color: "white", fontSize: 19, fontWeight: "bold", marginTop: 10}}>Your Top Artists</Text>
+
+          {recentlyPlayed.map(item => (
+            renderItem({ item })
+          ))}
+
+          <Text style={{ color: "white", fontSize: 19, fontWeight: "bold", marginTop: 10 }}>Your Top Artists</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
           >
             {topArtists.map((item, index) => {
-              <ArtistCard item={item} key={index}/>
+              <ArtistCard item={item} key={index} />
             })}
           </ScrollView>
-          <View style={{height: 20}}/>
-          <Text style={{color: "white", fontSize: 19, fontWeight: "bold", marginTop: 10}}>Recently Played</Text>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {topArtists.map((item, index) => (
+              <ArtistCard item={item} key={index} />
+            ))}
+          </ScrollView>
+
+          <View style={{ height: 10 }} />
+          <Text
+            style={{
+              color: "white",
+              fontSize: 19,
+              fontWeight: "bold",
+              marginTop: 10,
+            }}
+          >
+            Recently Played
+          </Text>
+          <FlatList
+            data={recentlyPlayed}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item, index }) => (
+              <RecentlyPlayedCard item={item} key={index} />
+            )}
+          />
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
