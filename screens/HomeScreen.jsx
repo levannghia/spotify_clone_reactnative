@@ -185,6 +185,7 @@ const HomeScreen = () => {
               </View>
             </View>
           </View>
+
           {/* <FlatList
             // horizontal
             data={recentlyPlayed}
@@ -220,7 +221,7 @@ const HomeScreen = () => {
               color: "white",
               fontSize: 19,
               fontWeight: "bold",
-              marginTop: 10,
+              marginVertical: 10,
             }}
           >
             Recently Played
