@@ -9,6 +9,7 @@ import axios from 'axios';
 import SongItem from '../components/SongItem';
 import { Player } from '../PlayerContext';
 import { BottomModal, ModalContent } from "react-native-modals"
+import { Audio } from 'expo-av/build';
 
 const LikedSongsScreen = () => {
     const navigation = useNavigation()
@@ -16,6 +17,7 @@ const LikedSongsScreen = () => {
     const [isPlaying, setIsPlaying] = useState(false)
     const [modalVisible, setModalVisible] = useState(false)
     const [input, setInput] = useState('')
+    const [currentSound, setCurrentSound] = useState(null);
     const [savedTracks, setSavedTracks] = useState([]);
     async function getSavedTracks() {
         try {
@@ -49,11 +51,40 @@ const LikedSongsScreen = () => {
         await play(savedTracks[0])
     }
 
-    const play = async () => {
+    const play = async (nextTrack) => {
+        console.log(nextTrack);
+        const preview_url = nextTrack?.track?.preview_url;
+        try {
+            if (currentSound) {
+                await currentSound.stopAsync();
+            }
 
+            await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: false,
+                shouldDuckAndroid: false,
+            });
+
+            const { sound, status } = await Audio.Sound.createAsync(
+                {
+                  uri: preview_url,
+                },
+                {
+                  shouldPlay: true,
+                  isLooping: false,
+                },
+                // onPlaybackStatusUpdate
+              );
+            //   onPlaybackStatusUpdate(status);
+              setCurrentSound(sound);
+              setIsPlaying(status.isLoaded);
+              await sound.playAsync();
+        } catch (error) {
+            console.error(error.message);
+        }
     }
 
-    console.log(savedTracks);
+    // console.log(savedTracks);
     return (
         <>
             <LinearGradient colors={["#614385", "#516395"]} style={{ flex: 1 }}>
@@ -241,7 +272,7 @@ const LikedSongsScreen = () => {
                                     <AntDesign name="pausecircle" size={60} color="white" />
                                 ) : (
                                     <Pressable
-                                     
+
                                         style={{
                                             width: 60,
                                             height: 60,
