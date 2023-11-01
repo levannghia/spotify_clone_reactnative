@@ -1,5 +1,5 @@
 import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View, StatusBar, ScrollView, Image, Pressable, TextInput, FlatList } from 'react-native'
-import React, { useEffect, useState, useContext } from 'react'
+import React, { useEffect, useState, useContext, useRef } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import reusable from '../components/reusable/reusable.style'
 import { Ionicons, AntDesign, MaterialCommunityIcons, Entypo, FontAwesome, Feather } from '@expo/vector-icons';
@@ -18,7 +18,11 @@ const LikedSongsScreen = () => {
     const [modalVisible, setModalVisible] = useState(false)
     const [input, setInput] = useState('')
     const [currentSound, setCurrentSound] = useState(null);
+    const [progress, setProgress] = useState(null);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [totalDuration, setTotalDuration] = useState(0);
     const [savedTracks, setSavedTracks] = useState([]);
+    const value = useRef(0);
     async function getSavedTracks() {
         try {
             const accessToken = await AsyncStorage.getItem("token")
@@ -43,6 +47,17 @@ const LikedSongsScreen = () => {
         getSavedTracks();
     }, [])
 
+    const handlePlayPause = async () => {
+        if(currentSound){
+            if(isPlaying){
+                await currentSound.pauseAsync();
+            }else{
+                await currentSound.playAsync();
+            }
+            setIsPlaying(!isPlaying)
+        }
+    }
+
     const playTrack = async () => {
         if (savedTracks.length > 0) {
             setCurrentTrack(savedTracks[0])
@@ -52,7 +67,7 @@ const LikedSongsScreen = () => {
     }
 
     const play = async (nextTrack) => {
-        console.log(nextTrack);
+        // console.log(nextTrack);
         const preview_url = nextTrack?.track?.preview_url;
         try {
             if (currentSound) {
@@ -67,28 +82,77 @@ const LikedSongsScreen = () => {
 
             const { sound, status } = await Audio.Sound.createAsync(
                 {
-                  uri: preview_url,
+                    uri: preview_url,
                 },
                 {
-                  shouldPlay: true,
-                  isLooping: false,
+                    shouldPlay: true,
+                    isLooping: false,
                 },
-                // onPlaybackStatusUpdate
-              );
-            //   onPlaybackStatusUpdate(status);
-              setCurrentSound(sound);
-              setIsPlaying(status.isLoaded);
-              await sound.playAsync();
+                onPlaybackStatusUpdate
+            );
+            console.log(sound);
+            onPlaybackStatusUpdate(status);
+            setCurrentSound(sound);
+            setIsPlaying(status.isLoaded);
+            await sound.playAsync();
         } catch (error) {
             console.error(error.message);
         }
     }
 
-    // console.log(savedTracks);
+    const onPlaybackStatusUpdate = async (status) => {
+        // console.log("satus", status);
+        if (status.isLoaded && status.isPlaying) {
+            const progress = status.positionMillis / status.durationMillis;
+            // console.log("progress: ", progress);
+            setProgress(progress);
+            setTotalDuration(status.durationMillis);
+            setCurrentTime(status.positionMillis);
+        }
+    }
+
+    const playNextTrack = async () => {
+        if(currentSound){
+            await currentSound.stopAsync();
+        }
+        value.current += 1
+
+        if(value.current < savedTracks.length){
+            const nextTrack = savedTracks[value.current];
+            setCurrentTrack(nextTrack)
+            await play(nextTrack)
+        }else{
+            console.log("end of playlist");
+        }
+    }
+
+    const playPreviousTrack = async () => {
+        if (currentSound) {
+          await currentSound.stopAsync();
+          setCurrentSound(null);
+        }
+        value.current -= 1;
+        if (value.current < savedTracks.length) {
+          const nextTrack = savedTracks[value.current];
+          setCurrentTrack(nextTrack);
+    
+          await play(nextTrack);
+        } else {
+          console.log("end of playlist");
+        }
+      };
+
+    const circleSize = 12
+    const formatTime = (time) => {
+        const minutes = Math.floor(time / 60000);
+        const seconds = Math.floor((time % 60000) / 1000);
+        return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+      };
+    console.log(value.current);
     return (
         <>
             <LinearGradient colors={["#614385", "#516395"]} style={{ flex: 1 }}>
-                <StatusBar barStyle={"light-content"} backgroundColor={"#614385"} translucent />
+                <StatusBar barStyle={"light-content"} backgroundColor={ modalVisible ? "#5072A7" : "#614385"} translucent />
                 <SafeAreaView style={reusable.container}>
                     <View>
                         <TouchableOpacity onPress={navigation.goBack}>
@@ -201,7 +265,7 @@ const LikedSongsScreen = () => {
                     }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                         <Image style={{ width: 40, height: 40 }} source={{ uri: currentTrack?.track?.album?.images[0].url }} />
-                        <Text numberOfLines={1} style={{ fontSize: 13, width: 220, color: 'white', fontWeight: 'bold' }}>{currentTrack?.track?.name} * {currentTrack?.track?.artists[0].name}</Text>
+                        <Text numberOfLines={1} style={{ fontSize: 13, width: "60%", color: 'white', fontWeight: 'bold' }}>{currentTrack?.track?.name} * {currentTrack?.track?.artists[0].name}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: "center", gap: 8 }}>
                         <AntDesign name='heart' size={24} color={'#1DB954'} />
@@ -246,10 +310,36 @@ const LikedSongsScreen = () => {
                                 <AntDesign name='heart' size={24} color="#1DB954" />
                             </View>
                             <View>
-                                <Text style={{ marginTop: 10 }}>Progess bar</Text>
+                                <View style={{ marginTop: 10 }}>
+                                    <View
+                                        style={{
+                                            width: "100%",
+                                            marginTop: 10,
+                                            backgroundColor: "gray",
+                                            height: 3,
+                                            borderRadius: 5
+                                        }}
+                                    >
+                                        <View style={[styles.progressbar, { width: `${progress * 100}%` }]} />
+                                        <View style={[
+                                            {
+                                                position: "absolute",
+                                                top: -5,
+                                                width: circleSize,
+                                                height: circleSize,
+                                                borderRadius: circleSize / 2,
+                                                backgroundColor: "white"
+                                            }, 
+                                            {
+                                                left: `${progress * 100}%`,
+                                                marginLeft: -circleSize / 2
+                                            }
+                                        ]} />
+                                    </View>
+                                </View>
                                 <View style={{ marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: 'space-between' }}>
-                                    <Text style={styles.textTime}>0:00</Text>
-                                    <Text style={styles.textTime}>0:30</Text>
+                                    <Text style={styles.textTime}>{formatTime(currentTime)}</Text>
+                                    <Text style={styles.textTime}>{formatTime(totalDuration)}</Text>
                                 </View>
                             </View>
                         </View>
@@ -264,15 +354,15 @@ const LikedSongsScreen = () => {
                             <Pressable>
                                 <FontAwesome name="arrows" size={30} color="#03C03C" />
                             </Pressable>
-                            <Pressable>
+                            <Pressable onPress={playPreviousTrack}>
                                 <Ionicons name="play-skip-back" size={30} color="white" />
                             </Pressable>
-                            <Pressable>
+                            <Pressable onPress={handlePlayPause}>
                                 {isPlaying ? (
                                     <AntDesign name="pausecircle" size={60} color="white" />
                                 ) : (
                                     <Pressable
-
+                                        onPress={handlePlayPause}
                                         style={{
                                             width: 60,
                                             height: 60,
@@ -286,7 +376,7 @@ const LikedSongsScreen = () => {
                                     </Pressable>
                                 )}
                             </Pressable>
-                            <Pressable>
+                            <Pressable onPress={playNextTrack}>
                                 <Ionicons name="play-skip-forward" size={30} color="white" />
                             </Pressable>
                             <Pressable>
@@ -306,5 +396,9 @@ const styles = StyleSheet.create({
     textTime: {
         color: '#D3D3D3',
         fontSize: 15
-    }
+    },
+    progressbar: {
+        height: "100%",
+        backgroundColor: "white",
+    },
 })
