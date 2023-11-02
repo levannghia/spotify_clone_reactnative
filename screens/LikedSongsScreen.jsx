@@ -1,4 +1,4 @@
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View, StatusBar, ScrollView, Image, Pressable, TextInput, FlatList } from 'react-native'
+import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View, StatusBar, ScrollView, ActivityIndicator, Image, Pressable, TextInput, FlatList } from 'react-native'
 import React, { useEffect, useState, useContext, useRef } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import reusable from '../components/reusable/reusable.style'
@@ -10,12 +10,14 @@ import SongItem from '../components/SongItem';
 import { Player } from '../PlayerContext';
 import { BottomModal, ModalContent } from "react-native-modals"
 import { Audio } from 'expo-av/build';
+import { debounce } from 'lodash';
 
 const LikedSongsScreen = () => {
     const navigation = useNavigation()
     const { currentTrack, setCurrentTrack } = useContext(Player)
     const [isPlaying, setIsPlaying] = useState(false)
     const [modalVisible, setModalVisible] = useState(false)
+    const [searchedTrack, setSearchedTrack] = useState([])
     const [input, setInput] = useState('')
     const [currentSound, setCurrentSound] = useState(null);
     const [progress, setProgress] = useState(null);
@@ -48,10 +50,10 @@ const LikedSongsScreen = () => {
     }, [])
 
     const handlePlayPause = async () => {
-        if(currentSound){
-            if(isPlaying){
+        if (currentSound) {
+            if (isPlaying) {
                 await currentSound.pauseAsync();
-            }else{
+            } else {
                 await currentSound.playAsync();
             }
             setIsPlaying(!isPlaying)
@@ -101,7 +103,7 @@ const LikedSongsScreen = () => {
     }
 
     const onPlaybackStatusUpdate = async (status) => {
-        // console.log("satus", status);
+        console.log("satus", status);
         if (status.isLoaded && status.isPlaying) {
             const progress = status.positionMillis / status.durationMillis;
             // console.log("progress: ", progress);
@@ -109,50 +111,75 @@ const LikedSongsScreen = () => {
             setTotalDuration(status.durationMillis);
             setCurrentTime(status.positionMillis);
         }
+
+        if (status.didJustFinish === true) {
+            setCurrentSound(null)
+            playNextTrack()
+        }
     }
 
     const playNextTrack = async () => {
-        if(currentSound){
+        if (currentSound) {
             await currentSound.stopAsync();
         }
         value.current += 1
 
-        if(value.current < savedTracks.length){
+        if (value.current < savedTracks.length) {
             const nextTrack = savedTracks[value.current];
             setCurrentTrack(nextTrack)
             await play(nextTrack)
-        }else{
+        } else {
             console.log("end of playlist");
         }
     }
 
     const playPreviousTrack = async () => {
         if (currentSound) {
-          await currentSound.stopAsync();
-          setCurrentSound(null);
+            await currentSound.stopAsync();
+            setCurrentSound(null);
         }
         value.current -= 1;
         if (value.current < savedTracks.length) {
-          const nextTrack = savedTracks[value.current];
-          setCurrentTrack(nextTrack);
-    
-          await play(nextTrack);
+            const nextTrack = savedTracks[value.current];
+            setCurrentTrack(nextTrack);
+
+            await play(nextTrack);
         } else {
-          console.log("end of playlist");
+            console.log("end of playlist");
         }
-      };
+    };
+
+    const debouncedSearch = debounce(handleSearch, 800);
+
+    function handleSearch(text) {
+        const filteredTracks = savedTracks.filter((item) =>
+            item.track.name.toLowerCase().includes(text.toLowerCase())
+        );
+        setSearchedTrack(filteredTracks)
+    }
+
+    const handleInputChange = (text) => {
+        setInput(text)
+        debouncedSearch(text)
+    }
+
+    useEffect(() => {
+        if (savedTracks.length > 0) {
+            handleSearch(input)
+        }
+    }, [savedTracks])
 
     const circleSize = 12
     const formatTime = (time) => {
         const minutes = Math.floor(time / 60000);
         const seconds = Math.floor((time % 60000) / 1000);
         return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-      };
-    console.log(value.current);
+    };
+
     return (
         <>
             <LinearGradient colors={["#614385", "#516395"]} style={{ flex: 1 }}>
-                <StatusBar barStyle={"light-content"} backgroundColor={ modalVisible ? "#5072A7" : "#614385"} translucent />
+                <StatusBar barStyle={"light-content"} backgroundColor={modalVisible ? "#5072A7" : "#614385"} translucent />
                 <SafeAreaView style={reusable.container}>
                     <View>
                         <TouchableOpacity onPress={navigation.goBack}>
@@ -171,7 +198,7 @@ const LikedSongsScreen = () => {
                                 borderRadius: 5
                             }}>
                                 <AntDesign name='search1' size={20} color={"white"} />
-                                <TextInput value={input} onChange={(text) => setInput(text)} placeholder='Find in Liked songs' placeholderTextColor={"white"} style={{ color: "white" }} />
+                                <TextInput value={input} onChangeText={(text) => handleInputChange(text)} placeholder='Find in Liked songs' placeholderTextColor={"white"} style={{ color: "white" }} />
                             </Pressable>
                             <Pressable style={{
                                 marginLeft: 10,
@@ -190,7 +217,7 @@ const LikedSongsScreen = () => {
                                 Liked Songs
                             </Text>
                             <Text style={{ color: "white", fontSize: 13, marginTop: 5 }}>
-                                430 songs
+                                {searchedTrack.length} songs
                             </Text>
                         </View>
 
@@ -236,12 +263,17 @@ const LikedSongsScreen = () => {
                                 </Pressable>
                             </View>
                         </Pressable>
-                        <FlatList
-                            showsVerticalScrollIndicator={false}
-                            data={savedTracks}
-                            keyExtractor={item => item.track.uri}
-                            renderItem={({ item }) => (<SongItem item={item} />)}
-                        />
+                        {searchedTrack.length === 0 ? (
+                            <ActivityIndicator size="large" color="gray" />
+                        ) : (
+                            <FlatList
+                                showsVerticalScrollIndicator={false}
+                                data={searchedTrack}
+                                keyExtractor={item => item.track.uri}
+                                renderItem={({ item }) => (<SongItem item={item} onPress={play} isPlaying={item === currentTrack} />)}
+                            />
+                        )}
+
                     </View>
                 </SafeAreaView>
             </LinearGradient>
@@ -289,7 +321,7 @@ const LikedSongsScreen = () => {
                 }}>
                     <View style={{ flex: 1, marginTop: 20 }}>
                         <Pressable style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                            <AntDesign name='down' size={24} color="white" />
+                            <AntDesign name='down' size={24} color="white" onPress={() => setModalVisible(false)} />
                             <Text style={{ fontSize: 13, fontWeight: 'bold', color: "white" }}>{currentTrack?.track?.name}</Text>
                             <Entypo name='dots-three-vertical' size={24} color="white" />
                         </Pressable>
@@ -329,7 +361,7 @@ const LikedSongsScreen = () => {
                                                 height: circleSize,
                                                 borderRadius: circleSize / 2,
                                                 backgroundColor: "white"
-                                            }, 
+                                            },
                                             {
                                                 left: `${progress * 100}%`,
                                                 marginLeft: -circleSize / 2

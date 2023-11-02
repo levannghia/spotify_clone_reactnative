@@ -122,7 +122,7 @@ const HomeScreen = () => {
   return (
     <LinearGradient colors={["#040306", "#131624"]} style={{ flex: 1 }}>
       <SafeAreaView style={reusable.container}>
-        <ScrollView>
+        <ScrollView contentContainerStyle={{paddingBottom: 50}}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Image style={{

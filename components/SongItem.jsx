@@ -2,16 +2,17 @@ import { StyleSheet, Text, View, Pressable, Image } from "react-native";
 import React ,{useContext} from  "react";
 import { AntDesign } from "@expo/vector-icons";
 import { Entypo } from "@expo/vector-icons";
-// import { Player } from "../PlayerContext";
+import { Player } from "../PlayerContext";
 
 const SongItem = ({ item, onPress, isPlaying }) => {
-//   const { currentTrack, setCurrentTrack } = useContext(Player);
-//   const handlePress = () => {
-//     setCurrentTrack(item);
-//     onPress(item)
-//   } 
+  const { currentTrack, setCurrentTrack } = useContext(Player);
+  const handlePress = () => {
+    setCurrentTrack(item);
+    onPress(item)
+  } 
   return (
     <Pressable
+      onPress={handlePress}
       style={{ flexDirection: "row", alignItems: "center", padding: 10 }}
     >
       <Image

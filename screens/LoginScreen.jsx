@@ -60,8 +60,8 @@ const LoginScreen = () => {
             // this must be set to false
             usePKCE: false,
             redirectUri: makeRedirectUri({
-                scheme: 'exp://192.168.1.10:8081'
-                // scheme: 'exp://192.168.1.59:8081'
+                // scheme: 'exp://192.168.1.10:8081'
+                scheme: 'exp://192.168.1.59:8081'
 
             }),
         },
@@ -73,10 +73,10 @@ const LoginScreen = () => {
             const { code } = response.params;
             const getData = async () => {
                 try {
-                    const data = await getAccessToken(code, 'exp://192.168.1.10:8081', 'e3c66f5069114b5299972d01478907e3', '20250319b41b4c0d90f23e3aa268b5be');
+                    const data = await getAccessToken(code, 'exp://192.168.1.59:8081', 'e3c66f5069114b5299972d01478907e3', '20250319b41b4c0d90f23e3aa268b5be');
                     const { access_token, refresh_token, expires_in } = data;
                     const expirationDate = new Date().getTime() + parseInt(expires_in) * 1000;
-                    // Lưu access_token vào AsyncStorage hoặc sử dụng nó theo nhu cầu của bạn.
+                    // Lưu access_token vào AsyncStorage.
                     AsyncStorage.setItem('token', access_token);
                     AsyncStorage.setItem("expirationDate",expirationDate.toString());
                     // console.log(expirationDate);
